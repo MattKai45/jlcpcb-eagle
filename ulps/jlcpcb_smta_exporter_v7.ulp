@@ -23,6 +23,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // Eagle 9: E.footprint.name
 // Eagle 7: E.package.name
 // Status: Still not tested in various Eagle versions.
+// Date: 2021-06-18
+// Merged two improvements from DavidOb
 
 #usage "<b>JLCPCB BOM/CPL files generator</b>\n"
        "<p>"
@@ -54,14 +56,21 @@ if (board) board(B) {
     int layer_choice = 0;
     int skip_empty=1;
 
-    dlgDialog("Export settings") {
+    int result = dlgDialog("Export settings") {
         dlgGroup("Export layer") {
             dlgRadioButton("&Top", layer_choice);
             dlgRadioButton("&Bottom", layer_choice);
         }
-		dlgCheckBox("&Skip parts with missing value",skip_empty);
-        dlgPushButton("OK") dlgAccept();
+        dlgCheckBox("&Skip parts with missing value",skip_empty);
+        dlgHBoxLayout {
+            dlgStretch(1);
+            dlgPushButton("+OK") dlgAccept();
+            dlgPushButton("-Cancel") dlgReject(-1);
+        }
     };
+    if (result < 0) {
+        exit(0);
+    }
 
     string output_dir = dlgDirectory("Export files to", filedir(B.name));
 
@@ -126,6 +135,7 @@ if (board) board(B) {
         string current_lscpart = "";
         string designators = "";
         int notstarting=0;
+        string E_LCSC_value = "";
 
         for (i = 0 ; i < element_count ; ++i) {
             UL_ELEMENT E = selected_elements[indexes[i]];
@@ -133,7 +143,19 @@ if (board) board(B) {
             if(skip_empty && E.value=="") {
                 continue;
             }
-            if (notstarting && (E.value != current_value || E.package.name != current_footprint)) {
+
+            // get LCSC_PART value of a part
+            E.attributes(A) {
+                if (A.name == "LCSC_PART") {
+                    //printf("%s", A.value);
+                    E_LCSC_value = replace_commas(A.value);
+                }
+                else {
+                    E_LCSC_value = "";
+                }
+            }
+
+            if (notstarting && (E.value != current_value || E.package.name != current_footprint || E_LCSC_value != current_lscpart)) {
                 printf("%s,%s,%s,%s\n", current_value, designators, current_footprint, current_lscpart);
                 designators = "";
             }
@@ -147,6 +169,7 @@ if (board) board(B) {
             current_footprint = replace_commas(E.package.name);
             current_lscpart = "";
 
+            // get LCSC_PART value of a part
             E.attributes(A) {
                 if (A.name == "LCSC_PART") {
                     current_lscpart = replace_commas(A.value);
