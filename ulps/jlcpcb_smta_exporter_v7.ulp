@@ -52,12 +52,14 @@ if (board) board(B) {
 
     string txt;
     int layer_choice = 0;
+    int skip_empty=1;
 
-    dlgDialog("Layer selection") {
+    dlgDialog("Export settings") {
         dlgGroup("Export layer") {
             dlgRadioButton("&Top", layer_choice);
             dlgRadioButton("&Bottom", layer_choice);
         }
+		dlgCheckBox("&Skip parts with missing value",skip_empty);
         dlgPushButton("OK") dlgAccept();
     };
 
@@ -90,6 +92,9 @@ if (board) board(B) {
 
         for (int i = 0 ; i < element_count ; ++i) {
             UL_ELEMENT E = selected_elements[i];
+            if(skip_empty && E.value=="") {
+                continue;
+            }
             int angle = E.angle;
             if (layer_name_map[layer_choice] == "Bottom") {
               angle = (360 - angle);
@@ -120,14 +125,19 @@ if (board) board(B) {
         string current_footprint = "";
         string current_lscpart = "";
         string designators = "";
+        int notstarting=0;
 
         for (i = 0 ; i < element_count ; ++i) {
             UL_ELEMENT E = selected_elements[indexes[i]];
 
-            if (current_value != "" && (E.value != current_value || E.package.name != current_footprint)) {
+            if(skip_empty && E.value=="") {
+                continue;
+            }
+            if (notstarting && (E.value != current_value || E.package.name != current_footprint)) {
                 printf("%s,%s,%s,%s\n", current_value, designators, current_footprint, current_lscpart);
                 designators = "";
             }
+            notstarting=1;
 
             if (designators != "") {
                 designators += " ";
