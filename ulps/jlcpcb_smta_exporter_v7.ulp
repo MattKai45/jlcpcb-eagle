@@ -23,6 +23,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // Eagle 9: E.footprint.name
 // Eagle 7: E.package.name
 // Status: Still not tested in various Eagle versions.
+// Date: 2021-06-18
+// Merged two improvements from DavidOb
 
 #usage "<b>JLCPCB BOM/CPL files generator</b>\n"
        "<p>"
@@ -52,14 +54,14 @@ if (board) board(B) {
 
     string txt;
     int layer_choice = 0;
-    int select_path=0;
+    int skip_empty=1;
 
-    int result = dlgDialog("Layer selection") {
+    int result = dlgDialog("Export settings") {
         dlgGroup("Export layer") {
             dlgRadioButton("&Top", layer_choice);
             dlgRadioButton("&Bottom", layer_choice);
         }
-        dlgCheckBox("S&elect other path than the one this board is in",select_path);
+        dlgCheckBox("&Skip parts with missing value",skip_empty);
         dlgHBoxLayout {
             dlgStretch(1);
             dlgPushButton("+OK") dlgAccept();
@@ -70,12 +72,9 @@ if (board) board(B) {
         exit(0);
     }
 
-    string output_dir;
-    if(select_path) output_dir = dlgDirectory("Export files to", filedir(B.name));
-    else output_dir = filedir(B.name);
+    string output_dir = dlgDirectory("Export files to", filedir(B.name));
 
     if (output_dir == "") {
-        dlgMessageBox("No path selected - exiting.", "OK");
         exit(0);
     }
 
@@ -102,6 +101,9 @@ if (board) board(B) {
 
         for (int i = 0 ; i < element_count ; ++i) {
             UL_ELEMENT E = selected_elements[i];
+            if(skip_empty && E.value=="") {
+                continue;
+            }
             int angle = E.angle;
             if (layer_name_map[layer_choice] == "Bottom") {
               angle = (360 - angle);
@@ -132,14 +134,32 @@ if (board) board(B) {
         string current_footprint = "";
         string current_lscpart = "";
         string designators = "";
+        int notstarting=0;
+        string E_LCSC_value = "";
 
         for (i = 0 ; i < element_count ; ++i) {
             UL_ELEMENT E = selected_elements[indexes[i]];
 
-            if (current_value != "" && (E.value != current_value || E.package.name != current_footprint)) {
+            if(skip_empty && E.value=="") {
+                continue;
+            }
+
+            // get LCSC_PART value of a part
+            E.attributes(A) {
+                if (A.name == "LCSC_PART") {
+                    //printf("%s", A.value);
+                    E_LCSC_value = replace_commas(A.value);
+                }
+                else {
+                    E_LCSC_value = "";
+                }
+            }
+
+            if (notstarting && (E.value != current_value || E.package.name != current_footprint || E_LCSC_value != current_lscpart)) {
                 printf("%s,%s,%s,%s\n", current_value, designators, current_footprint, current_lscpart);
                 designators = "";
             }
+            notstarting=1;
 
             if (designators != "") {
                 designators += " ";
@@ -149,6 +169,7 @@ if (board) board(B) {
             current_footprint = replace_commas(E.package.name);
             current_lscpart = "";
 
+            // get LCSC_PART value of a part
             E.attributes(A) {
                 if (A.name == "LCSC_PART") {
                     current_lscpart = replace_commas(A.value);
