@@ -25,6 +25,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // Status: Still not tested in various Eagle versions.
 // Date: 2021-06-18
 // Merged two improvements from DavidOb
+// Date: 2021-06-21
+// attribute name can be LCSC_PART or just LCSC, merged from upstream
+// LCSC_ROT or LCSC_ROTATION for manually rotation has been added, merged from upstream
 
 #usage "<b>JLCPCB BOM/CPL files generator</b>\n"
        "<p>"
@@ -105,6 +108,17 @@ if (board) board(B) {
                 continue;
             }
             int angle = E.angle;
+
+            E.attributes(A) {  // manually rotate the part
+                if (A.name == "JLC_ROTATION" || A.name == "JLC_ROT") {
+                    angle = angle + strtol(A.value);
+
+                    while(angle>360){
+                        angle = angle - 360;
+                    }
+                }
+            }
+
             if (layer_name_map[layer_choice] == "Bottom") {
               angle = (360 - angle);
               angle = angle + 180;
@@ -132,7 +146,7 @@ if (board) board(B) {
 
         string current_value = "";
         string current_footprint = "";
-        string current_lscpart = "";
+        string current_lcscpart = "";
         string designators = "";
         int notstarting=0;
         string E_LCSC_value = "";
@@ -146,7 +160,7 @@ if (board) board(B) {
 
             // get LCSC_PART value of a part
             E.attributes(A) {
-                if (A.name == "LCSC_PART") {
+                if (A.name == "LCSC_PART" || A.name == "LCSC") {
                     //printf("%s", A.value);
                     E_LCSC_value = replace_commas(A.value);
                 }
@@ -155,8 +169,8 @@ if (board) board(B) {
                 }
             }
 
-            if (notstarting && (E.value != current_value || E.package.name != current_footprint || E_LCSC_value != current_lscpart)) {
-                printf("%s,%s,%s,%s\n", current_value, designators, current_footprint, current_lscpart);
+            if (notstarting && (E.value != current_value || E.package.name != current_footprint || E_LCSC_value != current_lcscpart)) {
+                printf("%s,%s,%s,%s\n", current_value, designators, current_footprint, current_lcscpart);
                 designators = "";
             }
             notstarting=1;
@@ -167,17 +181,17 @@ if (board) board(B) {
             designators += E.name;
             current_value = replace_commas(E.value);
             current_footprint = replace_commas(E.package.name);
-            current_lscpart = "";
+            current_lcscpart = "";
 
             // get LCSC_PART value of a part
             E.attributes(A) {
-                if (A.name == "LCSC_PART") {
-                    current_lscpart = replace_commas(A.value);
+                if (A.name == "LCSC_PART" || A.name == "LCSC") {
+                    current_lcscpart = replace_commas(A.value);
                 }
             }
         }
         if (current_value != "") {
-          printf("%s,%s,%s,%s\n", current_value, designators, current_footprint, current_lscpart);
+          printf("%s,%s,%s,%s\n", current_value, designators, current_footprint, current_lcscpart);
         }
     }
 
