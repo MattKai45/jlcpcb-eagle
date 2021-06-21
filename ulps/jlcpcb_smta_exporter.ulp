@@ -86,7 +86,7 @@ if (board) board(B) {
             int angle = E.angle;
 
             E.attributes(A) {  // manually rotate the part
-                if (A.name == "JLC_ROTATION") {
+                if (A.name == "JLC_ROTATION" || A.name == "JLC_ROT") {
                     angle = angle + strtol(A.value);
 
                     while(angle>360){
